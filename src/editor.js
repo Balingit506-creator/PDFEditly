@@ -802,6 +802,7 @@ function select(a) {
     $("lw").value = a.lw;
   }
   $("trash").disabled = !a;
+  $("dup").disabled = !a;
   showOpts();
   if (doc) paint();
 }
@@ -1347,8 +1348,47 @@ function removeSel() {
   $("undo").disabled = !L.length;
   paint();
 }
+let clip = null,
+  pasteN = 0;
+function copySel() {
+  if (!sel) return false;
+  clip = sel;
+  pasteN = 0;
+  return true;
+}
+function pasteClip(step) {
+  if (!clip) return;
+  const pg = pages[cur],
+    dx = (16 * step) / pg.wpt,
+    dy = (16 * step) / pg.hpt,
+    n = { ...clip };
+  if (clip.t === "arrow") {
+    const [e1, e2] = ends(clip);
+    n.a = { p: [e1[0] + dx, e1[1] + dy] };
+    n.b = { p: [e2[0] + dx, e2[1] + dy] };
+  }
+  if (clip.p) n.p = clip.p.map((q) => [q[0] + dx, q[1] + dy]);
+  if (typeof clip.x === "number") {
+    n.x = clip.x + dx;
+    n.y = clip.y + dy;
+  }
+  delete n.ca;
+  delete n.cb;
+  pg.ann.push(n);
+  $("undo").disabled = false;
+  select(n);
+}
+function duplicateSel() {
+  if (!copySel()) return;
+  pasteClip(1);
+}
+function pasteSel() {
+  if (!clip) return;
+  pasteClip(++pasteN);
+}
 $("undo").onclick = undo;
 $("trash").onclick = removeSel;
+$("dup").onclick = duplicateSel;
 const rotate = () => {
   const p = pages[cur];
   if (p.ann.length) {
@@ -1417,6 +1457,25 @@ addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && k === "z") {
     e.preventDefault();
     undo();
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && k === "c") {
+    if (copySel()) {
+      e.preventDefault();
+      toast("Copied");
+    }
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && k === "v") {
+    if (clip) {
+      e.preventDefault();
+      pasteSel();
+    }
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && k === "d") {
+    e.preventDefault();
+    duplicateSel();
     return;
   }
   if ((e.ctrlKey || e.metaKey) && k === "s") {
