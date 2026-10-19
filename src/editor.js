@@ -1456,6 +1456,23 @@ const hex = (h) => {
     (n & 255) / 255,
   );
 };
+async function saveFile(filename, data, type) {
+  if (typeof claude !== "undefined" && claude && claude.use) {
+    const dl = await claude.use("downloads");
+    if (dl) {
+      await dl.save({ filename, data });
+      return;
+    }
+  }
+  const url = URL.createObjectURL(new Blob([data], { type }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
 async function save() {
   commitText();
   syncC();
@@ -1695,14 +1712,10 @@ async function save() {
     }
     const data = await out.save(),
       name = fname.replace(/\.pdf$/i, "") + "-edited.pdf";
-    const dl = await claude.use("downloads");
-    if (!dl) {
-      toast("Saving isn’t available in this view.");
-      return;
-    }
-    await dl.save({ filename: name, data });
+    await saveFile(name, data, "application/pdf");
     toast("Saved " + name);
   } catch (err) {
+    console.error(err);
     toast(
       err && err.code === "declined"
         ? "Save cancelled."
@@ -2872,17 +2885,14 @@ async function exportC() {
     ),
   );
   try {
-    const dl = await claude.use("downloads");
-    if (!dl) {
-      toast("Saving isn’t available in this view.");
-      return;
-    }
-    await dl.save({
-      filename: fname.replace(/\.pdf$/i, "") + "-comments.json",
+    await saveFile(
+      fname.replace(/\.pdf$/i, "") + "-comments.json",
       data,
-    });
+      "application/json",
+    );
     toast("Comments exported");
   } catch (e) {
+    console.error(e);
     toast("Couldn’t export comments.");
   }
 }
