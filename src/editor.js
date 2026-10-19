@@ -1719,7 +1719,7 @@ async function save() {
     toast(
       err && err.code === "declined"
         ? "Save cancelled."
-        : "Couldn’t save that file.",
+        : "Couldn’t save that file: " + ((err && err.message) || err),
     );
   }
 }
